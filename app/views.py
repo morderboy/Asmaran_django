@@ -34,9 +34,9 @@ def register_view(request):
 @require_POST
 def login_view(request):
     data = json.loads(request.body)
-    email = data.get('email')
+    username = data.get('username')
     password = data.get('password')
-    user = authenticate(email=email, password=password)
+    user = authenticate(username=username, password=password)
 
     if user is not None:
         login(request, user)
