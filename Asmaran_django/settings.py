@@ -128,7 +128,7 @@ DATABASES = {
         'NAME': 'Asmaran',
         'USER': 'root',
         'PASSWORD': '',
-        'HOST': '5.35.85.98',
+        'HOST': 'localhost',
         'PORT': '3306',
     },
     'master': {
@@ -136,7 +136,7 @@ DATABASES = {
         'NAME': 'master',
         'USER': 'root',
         'PASSWORD': '',
-        'HOST': '5.35.85.98',
+        'HOST': 'localhost',
         'PORT': '3306',
     },
 }
