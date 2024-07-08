@@ -45,4 +45,4 @@ def login_view(request):
         response.set_cookie('csrftoken', csrf_token, httponly=True, secure=True, samesite='Strict')
         return response
     else:
-        return JsonResponse({'success': False, 'error': 'Invalid credentials'})
+        return JsonResponse({'success': False, 'error': 'Invalid credentials'}, status=403)

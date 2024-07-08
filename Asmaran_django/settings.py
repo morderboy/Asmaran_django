@@ -25,6 +25,34 @@ SECRET_KEY = 'django-insecure-&0g(^gdfc9^+hr1&b*x#j$n4mlf1#q+u0v0^4$ozs^x3rh9l+e
 DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
+CORS_ALLOW_ALL_ORIGINS = True  # разрешить все домены
+# Или разрешить конкретные домены
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",
+#     "http://localhost:8000",
+# ]
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
 
 # Application definition
 
@@ -35,7 +63,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    "app.apps.AppConfig"
+    "app.apps.AppConfig",
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -46,6 +75,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
 ]
 
 ROOT_URLCONF = 'Asmaran_django.urls'
@@ -72,20 +103,39 @@ WSGI_APPLICATION = 'Asmaran_django.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'Asmaran',
+#         'USER': 'remoteuser',
+#         'PASSWORD': '123password',
+#         'HOST': '5.35.85.98',
+#         'PORT': '3306',
+#     },
+#     'master': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'master',
+#         'USER': 'remoteuser',
+#         'PASSWORD': '123password',
+#         'HOST': '5.35.85.98',
+#         'PORT': '3306',
+#     },
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'Asmaran',
-        'USER': 'remoteuser',
-        'PASSWORD': '123password',
+        'USER': 'root',
+        'PASSWORD': 'root',
         'HOST': '5.35.85.98',
         'PORT': '3306',
     },
     'master': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'master',
-        'USER': 'remoteuser',
-        'PASSWORD': '123password',
+        'USER': 'root',
+        'PASSWORD': 'root',
         'HOST': '5.35.85.98',
         'PORT': '3306',
     },
