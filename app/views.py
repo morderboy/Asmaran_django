@@ -6,7 +6,6 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 import json
 
-
 # Регистрация Пользователей
 @csrf_exempt
 @require_POST
@@ -28,7 +27,6 @@ def register_view(request):
             'error': 'User already exists'
         }, status=400)
 
-
 # Авторизация Пользователей
 @csrf_exempt
 @require_POST
@@ -36,13 +34,21 @@ def login_view(request):
     data = json.loads(request.body)
     email = data.get('email')
     password = data.get('password')
-    user = authenticate(email=email, password=password)
+
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        user = None
 
     if user is not None:
-        login(request, user)
-        csrf_token = get_token(request)
-        response = JsonResponse({'success': True, 'id': user.id})
-        response.set_cookie('csrftoken', csrf_token, httponly=True, secure=True, samesite='Strict')
-        return response
+        user = authenticate(username=user.username, password=password)
+        if user is not None:
+            login(request, user)
+            csrf_token = get_token(request)
+            response = JsonResponse({'success': True, 'id': user.id})
+            response.set_cookie('csrftoken', csrf_token, httponly=True, secure=True, samesite='Strict')
+            return response
+        else:
+            return JsonResponse({'success': False, 'error': 'Invalid credentials'}, status=403)
     else:
         return JsonResponse({'success': False, 'error': 'Invalid credentials'}, status=403)
