@@ -1,0 +1,6 @@
+/venv
+/Asmaran_django/__pycache__
+/app/__pycache__
+/app/migrations/__pycache__
+/staticfiles
+/app/migrations

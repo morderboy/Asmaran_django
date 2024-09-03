@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,12 +26,17 @@ SECRET_KEY = 'django-insecure-&0g(^gdfc9^+hr1&b*x#j$n4mlf1#q+u0v0^4$ozs^x3rh9l+e
 DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
-CORS_ALLOW_ALL_ORIGINS = True  # разрешить все домены
+CORS_ALLOW_CREDENTIALS = True
+
 # Или разрешить конкретные домены
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000",
-#     "http://localhost:8000",
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+]
 
 CORS_ALLOW_METHODS = [
     "DELETE",
@@ -51,8 +57,18 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
+    "access-control-allow-origin",
+    "credentials",
 ]
 
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+
+print(f"CSRF_COOKIE_SECURE: {CSRF_COOKIE_SECURE}")
+print(f"SESSION_COOKIE_SECURE: {SESSION_COOKIE_SECURE}")
+
+CSRF_COOKIE_SAMESITE = None
+SESSION_COOKIE_SAMESITE = None
 
 # Application definition
 
@@ -65,7 +81,18 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     "app.apps.AppConfig",
     'corsheaders',
+    'rest_framework',
+    'django_select2',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 6,
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -103,43 +130,51 @@ WSGI_APPLICATION = 'Asmaran_django.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'Asmaran',
-#         'USER': 'remoteuser',
-#         'PASSWORD': '123password',
-#         'HOST': '5.35.85.98',
-#         'PORT': '3306',
-#     },
-#     'master': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'master',
-#         'USER': 'remoteuser',
-#         'PASSWORD': '123password',
-#         'HOST': '5.35.85.98',
-#         'PORT': '3306',
-#     },
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'Asmaran',
-        'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'localhost',
+        'USER': 'remoteuser',
+        'PASSWORD': '123password',
+        'HOST': '5.35.85.98',
         'PORT': '3306',
     },
     'master': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'master',
-        'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'localhost',
+        'USER': 'remoteuser',
+        'PASSWORD': '123password',
+        'HOST': '5.35.85.98',
+        'PORT': '3306',
+    },
+    'world_content': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'world_content',
+        'USER': 'remoteuser',
+        'PASSWORD': '123password',
+        'HOST': '5.35.85.98',
         'PORT': '3306',
     },
 }
+
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.mysql',
+#        'NAME': 'Asmaran',
+#        'USER': 'root',
+#        'PASSWORD': 'root',
+#        'HOST': 'localhost',
+#        'PORT': '3306',
+#    },
+#    'master': {
+#        'ENGINE': 'django.db.backends.mysql',
+#        'NAME': 'master',
+#        'USER': 'root',
+#        'PASSWORD': 'root',
+#        'HOST': 'localhost',
+#        'PORT': '3306',
+#    },
+#}
 
 import pymysql
 pymysql.install_as_MySQLdb()
@@ -162,6 +197,14 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# SMTP
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.beget.com'
+EMAIL_PORT = 2525
+EMAIL_HOST_USER = 'asmorantest@pybyte.ru'  # Ваша почта
+EMAIL_HOST_PASSWORD = '136266696aBc!'  # Пароль от вашей почты или приложение-пароль, если используется двухфакторная аутентификация
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
@@ -176,7 +219,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/api/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+MEDIA_URL = '/api/uploads/'
+MEDIA_ROOT = "/var/www/asmaran_front/public/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
