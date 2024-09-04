@@ -353,3 +353,29 @@ def get_balance(request):
             return JsonResponse({'result': False, 'error': 'Account not found'}, status=404)
     else:
         return JsonResponse({'result': False}, status=401)
+
+@require_POST
+def buy_coins(request):
+    user = request.user
+    if user.is_authenticated:
+        try:
+            account = Account.objects.using('master').get(username=user.username)
+            data = json.loads(request.body)
+            coins_to_add = int(data.get('rubls'))  # Получаем количество коинов из POST-запроса
+
+            if (coins_to_add == 0):
+                raise ValueError
+
+            # Добавляем коины к текущему балансу
+            account.coin_current += coins_to_add
+            print(coins_to_add)
+            account.coin_total += coins_to_add
+            account.save(using='master')  # Сохраняем изменения в базе данных
+
+            return JsonResponse({'result': True, 'balance': account.coin_current})
+        except Account.DoesNotExist:
+            return JsonResponse({'result': False, 'error': 'Account not found'}, status=404)
+        except ValueError:
+            return JsonResponse({'result': False, 'error': 'Invalid rubls value'}, status=400)
+    else:
+        return JsonResponse({'result': False}, status=401)
