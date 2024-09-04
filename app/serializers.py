@@ -11,7 +11,7 @@ class ProductSerializer(serializers.ModelSerializer):
 class ShortProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ['id', 'title', 'image_url']
+        fields = ['id', 'title', 'price', 'image_url']
 
 
 class NewsSerializer(serializers.ModelSerializer):
