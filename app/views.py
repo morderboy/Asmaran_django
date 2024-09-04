@@ -6,7 +6,8 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from .models import Product, News, PasswordResetToken, BetaKey, SiteSettings
 from .models_master import Account, Vip
-from .serializers import ProductSerializer, ShortProductSerializer, NewsSerializer, ShortNewsSerializer
+from .models_admin import AccountCharacter
+from .serializers import *
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 import json
@@ -377,5 +378,21 @@ def buy_coins(request):
             return JsonResponse({'result': False, 'error': 'Account not found'}, status=404)
         except ValueError:
             return JsonResponse({'result': False, 'error': 'Invalid rubls value'}, status=400)
+    else:
+        return JsonResponse({'result': False}, status=401)
+
+@require_GET
+def get_characters_list(request):
+    user = request.user
+    if user.is_authenticated:
+        try:
+            account = Account.objects.using('master').get(username=user.username)
+            characters = AccountCharacter.objects.using('admin').filter(accountid=account.id)
+            if not characters.exists():
+                return JsonResponse({'result': False, 'error': 'No characters found for this account'}, status=405)
+            serializer = AccountCharacterSerializer(characters, many=True)
+            return JsonResponse({'result': True, 'characters': serializer.data}, status=200)
+        except Account.DoesNotExist:
+            return JsonResponse({'result': False, 'error': 'Account not found'}, status=404)
     else:
         return JsonResponse({'result': False}, status=401)

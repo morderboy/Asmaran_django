@@ -155,6 +155,14 @@ DATABASES = {
         'HOST': '5.35.85.98',
         'PORT': '3306',
     },
+    'admin': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'admin',
+        'USER': 'remoteuser',
+        'PASSWORD': '123password',
+        'HOST': '5.35.85.98',
+        'PORT': '3306',
+    },
 }
 
 #DATABASES = {
