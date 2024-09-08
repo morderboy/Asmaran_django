@@ -6,14 +6,15 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from .models import Product, News, PasswordResetToken, BetaKey, SiteSettings
 from .models_master import Account, Vip
-from .models_admin import AccountCharacter
+from .models_admin import AccountCharacter, CharacterMail
 from .serializers import *
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 import json
 from django.db import transaction
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.core.mail import send_mail
+from django.utils.timezone import now
 
 
 # Регистрация Пользователей
@@ -396,3 +397,122 @@ def get_characters_list(request):
             return JsonResponse({'result': False, 'error': 'Account not found'}, status=404)
     else:
         return JsonResponse({'result': False}, status=401)
+
+@require_POST
+def buy_product(request):
+    user = request.user
+    if user.is_authenticated:
+        try:
+            data = json.loads(request.body)
+            character_id = int(data.get('character_id'))
+            product_id = int(data.get('product_id'))
+
+            # Получаем учетную запись пользователя
+            account = Account.objects.using('master').get(username=user.username)
+
+            # Получаем персонажа, связанного с этой учетной записью и указанным character_id
+            character = AccountCharacter.objects.using('admin').get(accountid=account.id, characterid=character_id)
+
+            # Получаем продукт по product_id
+            product = Product.objects.get(id=product_id)
+
+            # Получаем связанный с продуктом шаблон предмета
+            item_template = product.get_item_template()
+
+            # Выполняем логику покупки (это может включать списание коинов, добавление предмета персонажу и т.д.)
+            if account.coin_current >= product.price:
+                account.coin_current -= product.price
+                account.save(using='master')
+
+                # Отправляем предмет на почту в игре
+                CharacterMail.objects.using('admin').create(
+                    mailarchive=0,
+                    isaccountmail=0,
+                    recipientid=character.characterid,  # ID аккаунта
+                    recipientname=character.charactername,  # Имя аккаунта
+                    senderid=1,  # ID отправителя (1 для Admin)
+                    sendername='Admin',  # Имя отправителя
+                    mailread=0,  # Письмо не прочитано
+                    mailsubject='Покупка в магазине Asmaran',  # Тема письма
+                    mailmessage='',  # Сообщение
+                    cod=0,
+                    mailattachmentitemid1=item_template.id,  # ID предмета в письме (из шаблона)
+                    mailattachmentitemid1taken=0,  # Предмет не забран
+                    datecreated=now(),  # Дата создания письма
+                    dateupdated=now(),  # Дата обновления
+                    expiry=None  # Время истечения (оставляем null)
+                )
+
+                # Возвращаем успешный ответ с данными персонажа и купленного товара
+                character_serializer = AccountCharacterSerializer(character)
+                return JsonResponse({
+                    'result': True,
+                    'character': character_serializer.data,
+                    'product': product.title
+                }, status=200)
+            else:
+                return JsonResponse({'result': False, 'error': 'Insufficient balance'}, status=400)
+
+        except Account.DoesNotExist:
+            return JsonResponse({'result': False, 'error': 'Account not found'}, status=402)
+        except AccountCharacter.DoesNotExist:
+            return JsonResponse({'result': False, 'error': 'Character not found'}, status=403)
+        except Product.DoesNotExist:
+            return JsonResponse({'result': False, 'error': 'Product not found'}, status=404)
+    else:
+        return JsonResponse({'result': False, 'error': 'Unauthorized'}, status=401)
+
+@require_POST
+def buy_zbt_key(request):
+    site_settings = SiteSettings.objects.first()
+    if not site_settings.beta_key_check_enabled:
+        return JsonResponse({'result': False, 'error': 'API Forbidden'}, status=403)
+
+    user = request.user
+    if user.is_authenticated:
+        try:
+            data = json.loads(request.body)
+            product_id = int(data.get('product_id'))
+
+            # Получаем учетную запись пользователя
+            account = Account.objects.using('master').get(username=user.username)
+
+            # Получаем продукт по product_id
+            product = Product.objects.get(id=product_id)
+
+            # Выполняем логику покупки (это может включать списание коинов, добавление предмета персонажу и т.д.)
+            if account.coin_current >= product.price:
+                account.coin_current -= product.price
+                account.save(using='master')
+                
+                # Проверяем, есть ли уже ключ ЗБТ у пользователя
+                try:
+                    beta_key = BetaKey.objects.get(user=user)
+                    # Если ключ найден, продлеваем его на 30 дней
+                    if beta_key.expiration_date < now():
+                        beta_key.expiration_date = now() + timedelta(days=30)
+                    else:
+                        # Если ключ еще действителен, продлеваем на 30 дней от текущей даты окончания
+                        beta_key.expiration_date += timedelta(days=30)
+                    beta_key.save()
+                    message = 'Ваш ключ ЗБТ продлен на 30 дней.'
+                except BetaKey.DoesNotExist:
+                    # Если ключа нет, создаем новый с действием на 30 дней
+                    expiration_date = now() + timedelta(days=30)
+                    key = str(uuid.uuid4())  # Генерация уникального ключа
+                    BetaKey.objects.create(user=user, key=key, expiration_date=expiration_date)
+                    message = 'Вы успешно приобрели ключ ЗБТ.'
+
+                return JsonResponse({
+                    'result': True,
+                    'product': product.title
+                }, status=200)
+            else:
+                return JsonResponse({'result': False, 'error': 'Insufficient balance'}, status=400)
+
+        except Account.DoesNotExist:
+            return JsonResponse({'result': False, 'error': 'Account not found'}, status=402)
+        except Product.DoesNotExist:
+            return JsonResponse({'result': False, 'error': 'Product not found'}, status=404)
+    else:
+        return JsonResponse({'result': False, 'error': 'Unauthorized'}, status=401)

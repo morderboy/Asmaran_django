@@ -36,12 +36,24 @@ class BetaKeyAdmin(admin.ModelAdmin):
 
 
 def add_beta_key_to_user(modeladmin, request, queryset):
-    expiration_date = timezone.now() + timedelta(days=30)  # Устанавливаем срок действия на 30 дней
     for user in queryset:
-        key = str(uuid.uuid4())  # Генерация уникального ключа
-        BetaKey.objects.create(user=user, key=key, expiration_date=expiration_date)
-    modeladmin.message_user(request, "Бета-ключи успешно добавлены выбранным пользователям.")
-
+        try:
+            # Проверяем, есть ли уже ключ у пользователя
+            beta_key = BetaKey.objects.get(user=user)
+            # Если ключ найден, продлеваем срок действия на 30 дней
+            if beta_key.expiration_date < timezone.now():
+                beta_key.expiration_date = timezone.now() + timedelta(days=30)
+            else:
+                # Если ключ еще действителен, продлеваем на 30 дней от текущей даты окончания
+                beta_key.expiration_date += timedelta(days=30)
+            beta_key.save()
+            modeladmin.message_user(request, f"Ключ ЗБТ для {user.username} продлен на 30 дней.")
+        except BetaKey.DoesNotExist:
+            # Если ключа нет, создаем новый
+            expiration_date = timezone.now() + timedelta(days=30)
+            key = str(uuid.uuid4())  # Генерация уникального ключа
+            BetaKey.objects.create(user=user, key=key, expiration_date=expiration_date)
+            modeladmin.message_user(request, f"Бета-ключ успешно добавлен для пользователя {user.username}.")
 
 add_beta_key_to_user.short_description = "Добавить бета-ключ выбранным пользователям"
 

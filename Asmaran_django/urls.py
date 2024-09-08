@@ -39,5 +39,7 @@ urlpatterns = [
     path('api/check-moderator-or-staff/', views.check_moderator_or_staff),
     path('api/balance', views.get_balance),
     path('api/buy-coins', views.buy_coins),
-    path('api/characters-list', views.get_characters_list)
+    path('api/characters-list', views.get_characters_list),
+    path('api/buy-product', views.buy_product),
+    path('api/buy-zbt-key', views.buy_zbt_key)
 ]
