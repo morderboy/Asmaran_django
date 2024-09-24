@@ -15,7 +15,13 @@ from django.db import transaction
 from datetime import datetime, timedelta
 from django.core.mail import send_mail
 from django.utils.timezone import now
+#Redis
+import redis
+from django.conf import settings
+from django.core.cache import cache
 
+# Инициализация подключения к Redis
+redis_instance = redis.StrictRedis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
 # Регистрация Пользователей
 @csrf_exempt
@@ -335,8 +341,16 @@ def news_detail_view(request, news_id):
 def check_moderator_or_staff(request):
     user = request.user
     if user.is_authenticated:
-        is_moderator = user.groups.filter(name='moderators').exists()
-        is_staff = user.is_staff
+        cache_key = f"user_is_staff_{user.username}"
+        cache_key_two = f"user_is_moderator_{user.username}"
+        is_staff = cache.get(cache_key)
+        is_moderator = cache.get(cache_key_two)
+
+        if is_staff is None or is_moderator is None:
+            is_moderator = user.groups.filter(name='moderators').exists()
+            is_staff = user.is_staff
+            cache.set(cache_key, is_staff, timeout=60*60)
+            cache.set(cache_key_two, is_moderator, timeout=60*60)
         if is_moderator or is_staff:
             return JsonResponse({'result': True})
         else:
@@ -348,11 +362,20 @@ def check_moderator_or_staff(request):
 def get_balance(request):
     user = request.user
     if user.is_authenticated:
-        try:
-            account = Account.objects.using('master').get(username=user.username)
-            return JsonResponse({'result': True, 'balance': account.coin_current})
-        except Account.DoesNotExist:
-            return JsonResponse({'result': False, 'error': 'Account not found'}, status=404)
+        cache_key = f"user_balance_{user.username}"  # Уникальный ключ для каждого пользователя
+        balance = cache.get(cache_key)
+
+        if balance is None:
+            try:
+                account = Account.objects.using('master').get(username=user.username)
+                balance = account.coin_current
+
+                # Сохранение баланса в Redis на 60 секунд
+                cache.set(cache_key, balance, timeout=600)
+            except Account.DoesNotExist:
+                return JsonResponse({'result': False, 'error': 'Account not found'}, status=404)
+
+        return JsonResponse({'result': True, 'balance': balance})
     else:
         return JsonResponse({'result': False}, status=401)
 
@@ -373,6 +396,10 @@ def buy_coins(request):
             print(coins_to_add)
             account.coin_total += coins_to_add
             account.save(using='master')  # Сохраняем изменения в базе данных
+
+            # Сохраняем баланс в редис
+            cache_key = f"user_balance_{user.username}"
+            cache.set(cache_key, account.coin_current, timeout=600)
 
             return JsonResponse({'result': True, 'balance': account.coin_current})
         except Account.DoesNotExist:
@@ -423,6 +450,10 @@ def buy_product(request):
             if account.coin_current >= product.price:
                 account.coin_current -= product.price
                 account.save(using='master')
+
+                # Сохраняем баланс в редис
+                cache_key = f"user_balance_{user.username}"
+                cache.set(cache_key, account.coin_current, timeout=600)
 
                 # Отправляем предмет на почту в игре
                 CharacterMail.objects.using('admin').create(
@@ -484,7 +515,11 @@ def buy_zbt_key(request):
             if account.coin_current >= product.price:
                 account.coin_current -= product.price
                 account.save(using='master')
-                
+
+                # Сохраняем баланс в редис
+                cache_key = f"user_balance_{user.username}"
+                cache.set(cache_key, account.coin_current, timeout=600)
+                    
                 # Проверяем, есть ли уже ключ ЗБТ у пользователя
                 try:
                     beta_key = BetaKey.objects.get(user=user)
