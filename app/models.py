@@ -67,3 +67,29 @@ class PasswordResetToken(models.Model):
         token = uuid.uuid4().hex  # Генерация уникального токена
         expires_at = timezone.now() + timedelta(hours=1)  # Токен действует 1 час
         return cls.objects.create(user=user, token=token, expires_at=expires_at)
+
+class Orders(models.Model):
+    STATUS_CHOICES = [
+        ('confirmed', 'Подтверждён'),
+        ('issued', 'Выдан'),
+        ('unconfirmed', 'Не подтверждён'),
+    ]
+
+    # Поле UUID будет являться основным ключом (id), и задавать его можно вручную
+    id = models.UUIDField(primary_key=True, editable=True, unique=True)  # Вы задаете UUID вручную
+
+    # Связь с пользователем
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    # Поле для статуса
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unconfirmed')
+
+    # Время создания заказа, задается вручную
+    created_at = models.DateTimeField(null=False)
+
+    # Кол-во коинов в заказе
+    coins = models.IntegerField(null=False)
+
+    def __str__(self):
+        return f"Order {self.id} for User {self.user}"
+

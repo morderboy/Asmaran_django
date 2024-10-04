@@ -41,5 +41,6 @@ urlpatterns = [
     path('api/buy-coins', views.buy_coins),
     path('api/characters-list', views.get_characters_list),
     path('api/buy-product', views.buy_product),
-    path('api/buy-zbt-key', views.buy_zbt_key)
+    path('api/buy-zbt-key', views.buy_zbt_key),
+    path('api/payment-notification', views.payment_notification)
 ]

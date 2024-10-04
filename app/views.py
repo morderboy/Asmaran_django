@@ -1,10 +1,10 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
 from django.middleware.csrf import get_token
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from .models import Product, News, PasswordResetToken, BetaKey, SiteSettings
+from .models import *
 from .models_master import Account, Vip
 from .models_admin import AccountCharacter, CharacterMail
 from .serializers import *
@@ -20,7 +20,9 @@ import redis
 from django.conf import settings
 from django.core.cache import cache
 
-from payment import pay_generation
+from .payment import pay_generation
+import ipaddress
+from ipware import get_client_ip
 
 # Инициализация подключения к Redis
 redis_instance = redis.StrictRedis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
@@ -393,12 +395,21 @@ def buy_coins(request):
             if (coins_to_add <= 0):
                 raise ValueError
 
-            res = pay_generation(coins_to_add)
+            count = Orders.objects.count()
+            p_url, p_id, p_created_at = pay_generation(coins_to_add, count + 1)
 
-            if res:
-                return JsonResponse({'result': True, 'balance': account.coin_current})
-            else:
-                return JsonResponse({'result': False, 'error': "Cant generate payment url"}, status=402)
+            if p_url and p_id and p_created_at:
+                order = Orders.objects.create(
+                    id = p_id,
+                    user = user,
+                    created_at = p_created_at,
+                    coins = coins_to_add
+                )
+
+                if order:
+                    return JsonResponse({'result': True, 'payment_url': p_url})
+
+            return JsonResponse({'result': False, 'error': "Cant generate payment url"}, status=402)
 
         except Account.DoesNotExist:
             return JsonResponse({'result': False, 'error': 'Account not found'}, status=404)
@@ -549,3 +560,78 @@ def buy_zbt_key(request):
             return JsonResponse({'result': False, 'error': 'Product not found'}, status=404)
     else:
         return JsonResponse({'result': False, 'error': 'Unauthorized'}, status=401)
+
+@require_POST
+@csrf_exempt
+def payment_notification(request):
+    # Список разрешённых IP-диапазонов и IP-адресов
+    ALLOWED_NETWORKS = [
+        ipaddress.ip_network('185.71.76.0/27'),
+        ipaddress.ip_network('185.71.77.0/27'),
+        ipaddress.ip_network('77.75.153.0/25'),
+        ipaddress.ip_network('77.75.154.128/25'),
+        ipaddress.ip_network('2a02:5180::/32'),
+    ]
+
+    # Список разрешённых конкретных IP-адресов
+    ALLOWED_IPS = [
+        ipaddress.ip_address('77.75.156.11'),
+        ipaddress.ip_address('77.75.156.35'),
+    ]
+
+    ip, is_routable = get_client_ip(request, request_header_order=['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP'])
+
+    # Преобразуем IP в объект
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+    except ValueError:
+        return HttpResponseForbidden('Invalid IP')
+
+    # Проверяем, находится ли IP в разрешённых сетях или это конкретный разрешённый IP
+    if not (any(ip_obj in net for net in ALLOWED_NETWORKS) or ip_obj in ALLOWED_IPS):
+        return HttpResponseForbidden('Access denied')
+
+    data = json.loads(request.body)
+    id = data.get("object").get("id")
+    if not id:
+        return JsonResponse({'result': False}, status=400)
+
+    try:
+        # Сохраняем статус заказа как подтверждённый
+        order = Orders.objects.get(id=id)
+
+        # Если заказ уже был выдан, пропускаем
+        if order.status == 'issued':
+            return JsonResponse({'result': True}, status=200)
+        
+        order.status = "confirmed"
+        order.save()
+
+        # Обрабатываем заказ
+        username = order.user.username
+        account = Account.objects.using('master').get(username=username)
+        account.coin_current += order.coins
+        account.coin_total += order.coins
+        account.save(using='master')
+
+        vip = Vip.objects.using('master').get(account_id=account.id)
+        vip.vip_points += order.coins
+
+        # Переводим заказ в статус выдан
+        order.status = "issued"
+        order.save()
+
+        # Обновляем данные о коинах в Redis
+        cache_key = f"user_balance_{username}"
+        cache.set(cache_key, account.coin_current, timeout=600)
+        
+        return JsonResponse({'result': True}, status=200)
+        
+    except Orders.DoesNotExist:
+        return JsonResponse({'result': False}, status=400)
+    except Account.DoesNotExist:
+        return JsonResponse({'result': False}, status=400)
+    except Vip.DoesNotExist:
+        return JsonResponse({'result': False}, status=400)
+    except Exception as e:
+        return JsonResponse({'result': False}, status=400)
