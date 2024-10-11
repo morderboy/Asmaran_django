@@ -11,3 +11,4 @@ django-select2==8.2.1
 django-redis==5.4.0
 gunicorn==23.0.0
 yookassa==3.3.0
+django-ipware==7.0.1

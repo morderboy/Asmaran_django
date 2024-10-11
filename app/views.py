@@ -81,7 +81,7 @@ def register_view(request):
 @require_POST
 def login_view(request):
     data = json.loads(request.body)
-    identifier = data.get('identifier')  # Изменено на identifier
+    identifier = data.get('username')  # Изменено на identifier
     password = data.get('password')
 
     try:
@@ -396,7 +396,7 @@ def buy_coins(request):
                 raise ValueError
 
             count = Orders.objects.count()
-            p_url, p_id, p_created_at = pay_generation(coins_to_add, count + 1)
+            p_url, p_id, p_created_at = pay_generation(coins_to_add, count + 1, user.email)
 
             if p_url and p_id and p_created_at:
                 order = Orders.objects.create(

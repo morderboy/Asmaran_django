@@ -6,12 +6,12 @@ from yookassa.domain.request.payment_request_builder import PaymentRequestBuilde
 from yookassa.domain.common import PaymentMethodType as pay_type
 import uuid
 
-Configuration.account_id = "465315"
-Configuration.secret_key = "test_TO7LIbF-V4YomTVfY7k0w8EiPqdeSUucRsI2PMjZoI4"
+Configuration.account_id = "447171"
+Configuration.secret_key = "live_auAMOrZIT8GZZI9WsqTnxetDUKNhcQiW6chNwwt-5sU"
 
-def pay_generation(coins: int, order_id: int):
+def pay_generation(coins: int, order_id: int, email: str):
     receipt = Receipt()
-    receipt.customer = {"email": "test@email.com"}
+    receipt.customer = {"email": email}
     receipt.tax_system_code = 1
     receipt.items = [
         ReceiptItem({

@@ -21,7 +21,7 @@ ENV PYTHONUNBUFFERED=1
 RUN python manage.py migrate
 
 # Запуск сервера Django
-CMD ["gunicorn", "--workers", "3", "--bind", "0.0.0.0:8000", "Asmaran_django.wsgi:application"]
+CMD ["gunicorn", "--workers", "6", "--bind", "0.0.0.0:8000", "Asmaran_django.wsgi:application"]
 
 # Открываем порт 8000
 EXPOSE 8000
